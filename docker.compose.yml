@@ -1,0 +1,40 @@
+version: '3.8'
+
+services:
+  elasticsearch:
+    image: docker.elastic.co/elasticsearch/elasticsearch:8.11.0
+    container_name: elasticsearch
+    environment:
+      - discovery.type=single-node
+      - xpack.security.enabled=false # Disable security for dev
+    ports:
+      - "9200:9200"
+      - "9300:9300"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9200/_cluster/health"]
+      interval: 10s
+      retries: 5
+      start_period: 10s
+      timeout: 5s
+
+  express_msms:
+    build: ./express_msms
+    container_name: express_msms
+    depends_on:
+      elasticsearch:
+        condition: service_healthy
+    ports:
+      - "8080:8080"
+    environment:
+      - ELASTICSEARCH_HOST=http://elasticsearch:9200
+      - NODE_ENV=production
+
+  mcms:
+    build: ./mcms
+    ports:
+      - "3000:3000"
+    depends_on:
+      - express_msms
+    environment:
+      - API_END_POINT=http://express_msms:8080
+      - NODE_ENV=production
